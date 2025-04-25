@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dex</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    #app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image: url("/assets/assets_task_01jsmnqc9nezs8zn0kpww58695_img_0.webp");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      color: whitesmoke;
+    }
+
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5em 1em;
+      background-color: rgba(0, 0, 0, 0.7);
+      border-bottom: 3px solid whitesmoke;
+      border-bottom-left-radius: 25px;
+    }
+
+    .header-section {
+      width: 150px;
+      text-align: center;
+    }
+
+    #dex-num {
+      justify-self: left;
+      margin: 0;
+    }
+
+    #main-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1em;
+    }
+
+    #input {
+      background-color: rgba(51, 48, 48, 0.85);
+      max-width: 50%;
+      padding: 1em;
+      border-radius: 10px;
+      border: 1px solid white;
+      margin-bottom: 2em;
+      text-align: center;
+    }
+
+    #input input {
+      padding: 0.5em;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+      margin-top: 0.5em;
+    }
+
+    #desc-sprite-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2em;
+      margin-bottom: 2em;
+    }
+
+    #returned-search {
+      background-color: rgba(45, 102, 45, 0.85);
+      max-width: 300px;
+      padding: 1em;
+      border-radius: 10px;
+      border: 1px solid white;
+      text-align: center;
+      word-break: break-word;
+    }
+
+    #sprite {
+      width: 200px;
+      height: auto;
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 10px;
+      padding: 0.5em;
+    }
+
+    #info {
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 1em;
+      border-radius: 10px;
+      max-width: 300px;
+    }
+
+    #info h4 {
+      text-decoration: underline;
+      margin: 0.5em 0;
+    }
+
+    #info ul {
+      padding-left: 1.2em;
+      margin-top: 0;
+    }
+
+    #info li {
+      margin-bottom: 0.3em;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="header">
+      <div class="header-section">
+        <span id="dex-num" v-if="returnedData">#{{ returnedData?.id }}</span>
+      </div>
+      <div class="header-section">
+        <h2>Dex</h2>
+        <p>Welcome to Dex!</p>
+      </div>
+      <div class="header-section"></div>
+    </div>
+
+    <div id="main-wrapper">
+      <div id="input">
+        <p>Search for a Pokémon:</p>
+        <input type="text" v-model="search" @keydown.enter="getData()" autofocus />
+      </div>
+
+      <div id="desc-sprite-wrapper">
+        <div id="returned-search" v-show="returnedData">
+          <h3 id="search-header">{{ returnedData?.name.toUpperCase() }}</h3>
+          <p>{{ speciesDescription }}</p>
+        </div>
+
+        <div id="img-container">
+          <img id="sprite" v-if="spriteURL" :src="spriteURL" :alt="returnedData.name" />
+        </div>
+
+        <div id="info" v-if="returnedData">
+          <h4>Type:</h4>
+          <ul>
+            <li v-for="type in returnedData?.types" :key="type.type.name">
+              {{ capitalize(type.type.name) }}
+            </li>
+          </ul>
+
+          <h4>Base Stats:</h4>
+          <ul v-if="returnedData?.stats && returnedData.stats.length">
+            <li v-for="stat in returnedData.stats" :key="stat.stat.name">
+              {{ capitalize(stat.stat.name) }}: {{ stat.base_stat }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          search: 'pikachu',
+          url: `https://pokeapi.co/api/v2/pokemon/`,
+          spriteURL: null,
+          returnedData: null,
+          speciesURL: null,
+          speciesDescription: '',
+          errorMSG: ''
+        };
+      },
+      methods: {
+        async getData() {
+          try {
+            const response = await fetch(this.url + this.search.trim().toLowerCase());
+            if (!response.ok) {
+              throw new Error(`Error: ${this.search} does not exist, check spelling`);
+            }
+            const json = await response.json();
+            this.returnedData = json;
+            this.speciesURL = json.species.url;
+            this.search = '';
+            this.getDesc();
+          } catch (error) {
+            console.log(error.message);
+          }
+        },
+
+        async getDesc() {
+          try {
+            const speciesResponse = await fetch(this.speciesURL);
+            if (!speciesResponse.ok) {
+              throw new Error("Error fetching description");
+            }
+            const speciesData = await speciesResponse.json();
+            const description = speciesData.flavor_text_entries.find(
+              (entry) => entry.language.name === 'en'
+            );
+
+            this.speciesDescription = description
+              ? description.flavor_text.replace(/[\n\r\f]/g, ' ').replace(/\s{2,}/g, ' ').trim()
+              : "No description available";
+
+            this.spriteURL = this.returnedData.sprites.other['official-artwork'].front_default;
+          } catch (error) {
+            console.log(error.message);
+          }
+        },
+
+        capitalize(str) {
+          return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+
+</html>
